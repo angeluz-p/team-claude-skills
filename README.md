@@ -7,15 +7,15 @@ Shared Claude Code skills for the team. Drop any skill here under `skills/<name>
 Assumes you already have Claude Code, `gh` (logged in), and optionally `codex`.
 
 ```bash
-git clone https://github.com/angeluz-p/team-claude-skills.git ~/team-claude-skills
-ln -s ~/team-claude-skills/skills/* ~/.claude/skills/
+git clone https://github.com/angeluz-p/team-claude-skills.git ~/.claude/team-claude-skills
+ln -s ~/.claude/team-claude-skills/skills/* ~/.claude/skills/
 ```
 
 On Windows (PowerShell, admin):
 
 ```powershell
-git clone https://github.com/angeluz-p/team-claude-skills.git $HOME\team-claude-skills
-Get-ChildItem "$HOME\team-claude-skills\skills" -Directory | ForEach-Object {
+git clone https://github.com/angeluz-p/team-claude-skills.git $HOME\.claude\team-claude-skills
+Get-ChildItem "$HOME\.claude\team-claude-skills\skills" -Directory | ForEach-Object {
   New-Item -ItemType SymbolicLink -Path "$HOME\.claude\skills\$($_.Name)" -Target $_.FullName
 }
 ```
@@ -23,13 +23,13 @@ Get-ChildItem "$HOME\team-claude-skills\skills" -Directory | ForEach-Object {
 Or just copy if symlinks are a hassle:
 
 ```bash
-cp -r ~/team-claude-skills/skills/pr-reviewer ~/.claude/skills/
+cp -r ~/.claude/team-claude-skills/skills/pr-reviewer ~/.claude/skills/
 ```
 
 ## Update
 
 ```bash
-cd ~/team-claude-skills && git pull
+cd ~/.claude/team-claude-skills && git pull
 ```
 
 Symlink users: done. Copy users: re-run the `cp`.
