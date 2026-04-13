@@ -7,15 +7,17 @@ Shared Claude Code skills for the team. Drop any skill here under `skills/<name>
 Assumes you already have Claude Code, `gh` (logged in), and optionally `codex`.
 
 ```bash
-git clone <this-repo> ~/team-claude-skills
-ln -s ~/team-claude-skills/skills/pr-reviewer ~/.claude/skills/pr-reviewer
+git clone https://github.com/angeluz-p/team-claude-skills.git ~/team-claude-skills
+ln -s ~/team-claude-skills/skills/* ~/.claude/skills/
 ```
 
 On Windows (PowerShell, admin):
 
 ```powershell
-git clone <this-repo> $HOME\team-claude-skills
-New-Item -ItemType SymbolicLink -Path "$HOME\.claude\skills\pr-reviewer" -Target "$HOME\team-claude-skills\skills\pr-reviewer"
+git clone https://github.com/angeluz-p/team-claude-skills.git $HOME\team-claude-skills
+Get-ChildItem "$HOME\team-claude-skills\skills" -Directory | ForEach-Object {
+  New-Item -ItemType SymbolicLink -Path "$HOME\.claude\skills\$($_.Name)" -Target $_.FullName
+}
 ```
 
 Or just copy if symlinks are a hassle:
