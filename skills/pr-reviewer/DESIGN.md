@@ -206,6 +206,9 @@ User: "/pr-reviewer 280"
 │ - commit messages                                    │
 │ - Auto-detect staging URL in PR body                 │
 │ - Stop if draft, confirm before proceeding           │
+│ - Stop if already approved/changes-requested,        │
+│   confirm before proceeding (checks new commits      │
+│   since last review for CHANGES_REQUESTED state)     │
 └─────────────────────────────────────────────────────┘
       │
       ▼
