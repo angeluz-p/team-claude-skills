@@ -294,8 +294,9 @@ This way the user sees the final report inline with the posting decision instead
 Immediately after presenting the full Step 6 report (and after any Codex integration from Step 4), in the SAME message as the report OR as the very next action, fire this question using AskUserQuestion:
 
 > "The full review is above. Want me to post it to PR #<number>? If yes, which mode?
-> • **Comment** — neutral, no approval/blocking signal
-> • **Request Changes** — blocks merge until findings are addressed
+> • **Inline** — post each finding as a line-level comment on its exact location; scorecard + summary post as the review body
+> • **Comment** — post the full report as one review comment, neutral signal
+> • **Request Changes** — full report as one comment, blocks merge
 > • **Approve** — approves the PR (use only if verdict is APPROVE)
 > • **No** — don't post, keep the review in chat only"
 
@@ -320,6 +321,56 @@ Mode-to-flag mapping:
 Use `--body-file` not `--body "$(cat <<EOF...)"` — heredocs break on backticks and special chars inside markdown tables and code blocks, and your report has both.
 
 After posting, confirm: "Posted to PR #<number> as <mode>. URL: <pr-url>"
+
+### If user picks Inline
+
+Post findings as line-level comments on their exact locations. Scorecard + summary go in the review body.
+
+**1. Get repo and commit info (two separate Bash calls):**
+```bash
+gh repo view --json nameWithOwner --jq .nameWithOwner
+```
+```bash
+gh pr view <number> --json headRefOid --jq .headRefOid
+```
+
+**2. Build the review body** (scorecard, verdict, summary, what's good, scope check, reviewer, usage — everything EXCEPT the findings list).
+
+**3. Build the JSON payload** — write to a temp file using the same cat-heredoc pattern:
+```bash
+TMPJSON=$(mktemp --suffix=.json)
+cat > "$TMPJSON" <<'JSONEOF'
+{
+  "commit_id": "<headRefOid from step 1>",
+  "body": "<review body from step 2 — escape double quotes as \\\" and newlines as \\n>",
+  "event": "COMMENT",
+  "comments": [
+    {
+      "path": "src/foo.ts",
+      "line": 42,
+      "side": "RIGHT",
+      "body": "**P1 — Important:** <finding text>\\n\\n**Suggestion:** <fix>"
+    }
+  ]
+}
+JSONEOF
+```
+
+- `path` — exact file path from the finding (e.g., `src/api/auth.ts`)
+- `line` — line number from the finding (e.g., `42`)
+- `side` — use `"RIGHT"` for added/context lines (almost always RIGHT)
+- `body` — the finding text. Include priority label, what's wrong, and suggestion. Escape double quotes and newlines for valid JSON.
+- One entry per finding. Include all P0/P1/P2/P3 findings.
+
+**4. Post via gh api:**
+```bash
+gh api repos/<owner>/<repo>/pulls/<number>/reviews --method POST --input "$TMPJSON"
+rm -f "$TMPJSON"
+```
+
+**5. Error handling:**
+- If the API returns 422 for a specific comment (line not in diff), fall back: re-post without that comment's inline entry and append it to the review body under a "Findings not mappable to diff lines" section.
+- If the whole call fails, fall back to regular `--comment` posting with the full report.
 
 ## Rules
 
