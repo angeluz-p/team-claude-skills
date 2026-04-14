@@ -309,7 +309,31 @@ TMPBODY=$(mktemp --suffix=.md)
 cat > "$TMPBODY" <<'EOF'
 <paste full Step 6 report here>
 EOF
+```
+
+**Before posting — verify the temp file is non-empty (separate Bash call):**
+```bash
+wc -c < "$TMPBODY"
+```
+If the output is `0`, STOP. Tell the user: "Temp file is empty — the report didn't write correctly. Try again." Do NOT post. Clean up: `rm -f "$TMPBODY"`.
+
+**Post:**
+```bash
 gh pr review <number> --<mode> --body-file "$TMPBODY"
+```
+
+**Verify body was attached — known bug: `--approve --body-file` sometimes posts the approval without the body.** After posting, run:
+```bash
+gh pr view <number> --json reviews --jq '.reviews[-1] | {state, body: .body[0:80]}'
+```
+If `body` is empty or null, the body was dropped. In that case, post it as a follow-up comment:
+```bash
+gh pr comment <number> --body-file "$TMPBODY"
+```
+Then tell the user: "Approved. Note: GitHub dropped the review body — posted it as a follow-up comment instead."
+
+**Cleanup:**
+```bash
 rm -f "$TMPBODY"
 ```
 
