@@ -264,6 +264,7 @@ User: "/pr-reviewer 280"
 | When | Question | Why |
 |---|---|---|
 | Step 2 (conditional) | Draft PR — review anyway? | Reviewing drafts creates noisy findings |
+| Step 2 (conditional) | Already approved — re-review anyway? | Prevents accidental double-review; lets user change verdict if needed |
 | Step 4 (default) | Want Codex second opinion? | Informed opt-in for extra cost |
 | Step 4 (conditional) | Uncommitted changes — stash / commit / cancel? | Safety before branch switch |
 | Step 4 (conditional) | Files overlap with PR — commit / cancel? | Safety against stash-pop conflict |

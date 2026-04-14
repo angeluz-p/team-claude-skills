@@ -86,7 +86,17 @@ Tell the user which mode you're in with one short line (e.g., "Running in remote
 
 1. Read the PR metadata: `gh pr view --json title,body,labels,author,isDraft,reviews,comments`
 2. **Draft check:** if `isDraft` is true, stop and ask the user: "This PR is marked as Draft/WIP. Review anyway, or wait until it's marked ready?" Do not proceed without confirmation — reviewing drafts creates noisy findings on code the author knows is unfinished.
-3. **Previous-review check (your reviews only):** auto-detect the current user's GitHub handle with `gh api user --jq .login` (do NOT hardcode — the agent is shared and each user has their own handle). Filter `reviews` and `comments` to entries where `author.login` matches the detected handle — ignore Copilot, other humans, and bots. The agent is the user's memory across re-reviews, not a team aggregator; other reviewers' opinions are out of scope (Codex already runs in Step 4 for AI cross-validation). The agent is the user's memory across re-reviews, not a team aggregator; other reviewers' opinions are out of scope (and Codex already runs in Step 4 for AI cross-validation). For each of your prior findings, check the current diff:
+3. **Previous-review check (your reviews only):** auto-detect the current user's GitHub handle with `gh api user --jq .login` (do NOT hardcode — the agent is shared and each user has their own handle). Filter `reviews` and `comments` to entries where `author.login` matches the detected handle — ignore Copilot, other humans, and bots. The agent is the user's memory across re-reviews, not a team aggregator; other reviewers' opinions are out of scope (Codex already runs in Step 4 for AI cross-validation).
+
+   **Prior approval check:** before processing findings, check if any of your prior reviews has `state: "APPROVED"`. If yes, stop and ask using AskUserQuestion:
+
+   > "You already approved PR #<number> on <date of approval>. Re-reviewing will let you update or change that verdict. Continue?
+   > • **Yes** — re-review, I may want to change my verdict
+   > • **No** — skip, I'm done"
+
+   If No → stop the skill entirely, confirm "Review skipped — PR was already approved by you on <date>." If Yes → proceed normally, the new review may result in a different verdict.
+
+   For each of your prior findings, check the current diff:
    - **Resolved** — skip it, don't re-flag. Mention in the Summary that N of your prior findings were resolved.
    - **Still unresolved** — include it in findings, prefix with `[previously raised, still unresolved]`.
    - **Can't tell** — include with `[prior finding, status unclear]` and let the author clarify.
