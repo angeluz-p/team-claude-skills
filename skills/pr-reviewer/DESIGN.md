@@ -219,14 +219,8 @@ User: "/pr-reviewer 280"
       │
       ▼
 ┌─────────────────────────────────────────────────────┐
-│ Step 6 (early render): Full report to chat           │
-│ - Scorecard table, all sections, all P0/P1/P2/P3     │
-│ - Rendered directly in user's conversation           │
-└─────────────────────────────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────┐
 │ Step 4: MANDATORY AskUserQuestion about Codex        │
+│ - Full report renders first (Step 6 format)          │
 │ - If yes → safety gates → checkout → Codex →        │
 │          auto-cleanup → re-render updated report     │
 │ - If no → report above is final                      │
@@ -235,6 +229,14 @@ User: "/pr-reviewer 280"
       ▼
 ┌─────────────────────────────────────────────────────┐
 │ Step 5: Live testing (tightly gated, usually skipped)│
+└─────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────┐
+│ Step 6: Full report rendered to chat                 │
+│ - Scorecard table, all sections, all P0/P1/P2/P3     │
+│ - Re-rendered here if Codex ran (updated Reviewer)   │
+│ - Rendered directly in user's conversation           │
 └─────────────────────────────────────────────────────┘
       │
       ▼
