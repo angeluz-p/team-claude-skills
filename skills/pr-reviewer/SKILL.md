@@ -263,7 +263,11 @@ Always list ALL findings regardless of count — even if there's just 1. Sorted 
 If a priority level has no findings, still show the heading with "None" so the user sees the full picture.
 
 ### What's Good
-<2-3 things the PR does well — good test coverage, clean abstractions, clear naming. Don't skip this. Reviewers who only report problems are bad reviewers.>
+- <thing the PR does well>
+- <thing the PR does well>
+- <thing the PR does well>
+
+Use bullet points. 2-3 items minimum. Don't skip this section. Reviewers who only report problems are bad reviewers.
 
 ### Scope Check
 <CLEAN or DRIFT DETECTED — list any out-of-scope changes>
@@ -318,11 +322,22 @@ Use AskUserQuestion:
 
 CRITICAL: this question MUST fire after Question 0, always. Do not skip it even if verdict is APPROVE or there are no P0/P1 findings. Prior bug: skill skipped this and went straight to Question 2. That is a failure mode.
 
-Use AskUserQuestion:
+Use AskUserQuestion. The description changes based on verdict:
 
-> "Post findings as inline comments to PR #<number>?
+- Verdict is **APPROVE**:
+> "Post findings as inline comments to PR #<number>? (optional — verdict is APPROVE)
 > • **Yes** — each finding posted as a line-level comment on its exact file:line (priority label included)
-> • **No** — skip inline, go straight to summary posting options"
+> • **No** — skip inline, go straight to summary"
+
+- Verdict is **REQUEST CHANGES**:
+> "Post findings as inline comments to PR #<number>? (recommended — author needs line-level context to address findings)
+> • **Yes** — each finding posted as a line-level comment on its exact file:line (priority label included)
+> • **No** — skip inline, go straight to summary"
+
+- Verdict is **NEEDS DISCUSSION**:
+> "Post findings as inline comments to PR #<number>? (recommended — helps clarify what needs discussion)
+> • **Yes** — each finding posted as a line-level comment on its exact file:line (priority label included)
+> • **No** — skip inline, go straight to summary"
 
 **If Yes → post inline (run these steps):**
 
