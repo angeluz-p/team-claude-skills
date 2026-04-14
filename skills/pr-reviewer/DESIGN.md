@@ -294,6 +294,8 @@ User: "/pr-reviewer 280"
 - Browser stack missing → skip `/qa-only`, continue
 - Stash pop conflict → stop, tell user work is safe in `git stash list`
 - Dirty tree + file overlap with PR → refuse to stash, offer Claude-only
+- Temp file empty before posting → stop, tell user to retry (don't post blank review)
+- Approve body dropped by GitHub → auto-post body as follow-up `gh pr comment`
 
 ---
 
@@ -310,6 +312,29 @@ User: "/pr-reviewer 280"
 
 **Pro:** Structural report-only enforcement via `allowed-tools` frontmatter — Edit/Write/NotebookEdit are not even loaded, so misbehavior is impossible, not just discouraged.
 **Con:** If you later want the skill to edit something (e.g., auto-apply a suggestion), you'd have to broaden the allowlist and re-audit the safety story.
+
+---
+
+## 8.1 Posting flow
+
+Step 7 uses a two-question flow instead of a single mode picker:
+
+**Question 1 — Post inline?** Yes / No
+- Yes → posts each finding as a line-level comment on its exact file:line, priority label included (P0/P1/P2/P3 visible on the diff). Uses `gh api repos/{owner}/{repo}/pulls/{number}/reviews` with a `comments[]` array.
+- No → skip inline, go to Question 2.
+
+**Question 2 — Post summary?** Approve / Request Changes / Comment / No
+- Posts scorecard, verdict, what's good, scope check as a review body — no findings list (those are already inline).
+- Recommended option is pre-highlighted based on verdict.
+- No → done, keep everything in chat only.
+
+This means the typical flow for an APPROVE review is: inline findings pinned to their lines + summary posted as Approve. Author sees the approval signal and can address the inline notes before merging or just merge.
+
+**Why two questions:** inline and summary serve different purposes. Inline gives the author line-level context; the summary gives the overall verdict signal. Separating them lets you post inline without approving yet, or approve without inline if the PR has no findings worth pinning.
+
+**Inline error handling:** if the GitHub API rejects a line (HTTP 422 — not in diff), that finding is removed from the inline payload and appended to the summary body under "Findings not mappable to diff lines." Full fallback to regular `--comment` if the whole inline call fails.
+
+**Approve body-drop fix:** GitHub occasionally drops the review body when using `--approve --body-file` (confirmed bug, happened twice in practice). The skill verifies after posting via `gh pr view --json reviews`. If the body is missing, it auto-posts the report as a `gh pr comment` and tells the user.
 
 ---
 
@@ -366,10 +391,11 @@ Feedback loop: after each user's first 3 reviews, ask what worked, what confused
 ## 13. Files
 
 - `~/.claude/skills/pr-reviewer/SKILL.md` — the skill itself (primary)
-- `~/.claude/agents/pr-reviewer.md` — the agent variant (fallback)
+- `.claude/skills/pr-reviewer/SKILL.md` — project-level copy (teammates get it on pull)
+- `.claude/skills/pr-reviewer/DESIGN.md` — this file, co-located with the skill
+- `~/.claude/agents/pr-reviewer.md` — the agent variant (deprecated, legacy only)
 - `~/.claude/agents/pr-reviewer-SETUP.md` — install and usage guide
-- `docs/pr-reviewer-design.md` — design doc for the agent variant
-- `docs/pr-reviewer-skill-design.md` — this file, design doc for the skill variant
+- `docs/pr-reviewer-skill-design.md` — canonical design doc (source of truth)
 
 ---
 
@@ -390,4 +416,4 @@ use pr-reviewer for PR 280
 
 ---
 
-*Last updated: 2026-04-13.*
+*Last updated: 2026-04-14.*

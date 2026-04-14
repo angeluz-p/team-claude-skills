@@ -291,33 +291,101 @@ Sanity floor: if `applicable < 5` (tiny PR, almost everything N/A), don't trust 
 
 This way the user sees the final report inline with the posting decision instead of having to scroll back. Skip this re-render only if Codex was never attempted (user said No, or shortcut said skip) — in that case the Step 6 report is already the most recent visible message.
 
-Immediately after presenting the full Step 6 report (and after any Codex integration from Step 4), in the SAME message as the report OR as the very next action, fire this question using AskUserQuestion:
+Immediately after presenting the full Step 6 report (and after any Codex integration from Step 4), in the SAME message as the report OR as the very next action, fire the posting flow below. This is MANDATORY — do not stop after the report.
 
-> "The full review is above. Want me to post it to PR #<number>? If yes, which mode?
-> • **Inline** — post each finding as a line-level comment on its exact location; scorecard + summary as the review body; event matches the verdict (APPROVE → approves, REQUEST CHANGES → blocks, NEEDS DISCUSSION → neutral)
-> • **Comment** — post the full report as one review comment, neutral signal
-> • **Request Changes** — full report as one comment, blocks merge
-> • **Approve** — approves the PR (use only if verdict is APPROVE)
-> • **No** — don't post, keep the review in chat only"
+CRITICAL: these questions MUST fire. Prior bug: agents delivered the report and stopped, forcing the user to prompt "what about posting?" That is a failure mode. Always ask.
 
-CRITICAL: this question MUST fire. Prior bug: agents delivered the report and stopped, forcing the user to prompt "what about posting?" That is a failure mode. Always ask.
+### Question 1 — Post inline?
 
-The report content that would be posted is EXACTLY the Step 6 output — no rewriting, no separate "comment body" version. If the user picks a post mode, write the full Step 6 report to a temp Markdown file and post via `--body-file`:
+Use AskUserQuestion:
+
+> "Post findings as inline comments to PR #<number>?
+> • **Yes** — each finding posted as a line-level comment on its exact file:line (priority label included)
+> • **No** — skip inline, go straight to summary posting options"
+
+**If Yes → post inline (run these steps):**
+
+1. Get repo and commit info (two separate Bash calls):
+```bash
+gh repo view --json nameWithOwner --jq .nameWithOwner
+```
+```bash
+gh pr view <number> --json headRefOid --jq .headRefOid
+```
+
+2. Build the JSON payload — findings only, no scorecard. Each finding includes its priority label (P0/P1/P2/P3), what's wrong, and suggestion. Write to a temp file:
+```bash
+TMPJSON=$(mktemp --suffix=.json)
+cat > "$TMPJSON" <<'JSONEOF'
+{
+  "commit_id": "<headRefOid>",
+  "body": "",
+  "event": "COMMENT",
+  "comments": [
+    {
+      "path": "src/foo.ts",
+      "line": 42,
+      "side": "RIGHT",
+      "body": "**P1 — Important:** <what's wrong>\\n\\n**Suggestion:** <fix>"
+    }
+  ]
+}
+JSONEOF
+```
+- `side` — use `"RIGHT"` for added/context lines (almost always RIGHT)
+- One entry per finding, all P0/P1/P2/P3
+
+3. Verify the temp file is non-empty before posting:
+```bash
+wc -c < "$TMPJSON"
+```
+If `0`, STOP — tell user "Temp file empty, try again." Clean up and do not post.
+
+4. Post:
+```bash
+gh api repos/<owner>/<repo>/pulls/<number>/reviews --method POST --input "$TMPJSON"
+rm -f "$TMPJSON"
+```
+
+5. Error handling:
+- API returns 422 for a specific line (not in diff) → remove that comment from the payload, re-post, append that finding under "Findings not mappable to diff lines" in the summary body
+- Whole call fails → skip inline, tell user, proceed to Question 2
+
+6. Confirm: "Inline comments posted — [N] findings pinned to their lines."
+
+### Question 2 — Post summary?
+
+After inline (or if user said No to inline), use AskUserQuestion:
+
+> "Post the summary to PR #<number>? The summary includes: scorecard, verdict, what's good, scope check.
+> • **Approve** — summary + approves the PR
+> • **Request Changes** — summary + blocks merge
+> • **Comment** — summary, neutral signal
+> • **No** — skip summary, done"
+
+The recommended option is pre-highlighted based on verdict:
+- Verdict APPROVE → highlight Approve
+- Verdict REQUEST CHANGES → highlight Request Changes
+- Verdict NEEDS DISCUSSION → highlight Comment
+
+**If Approve / Request Changes / Comment → post summary:**
+
+Write the summary body (scorecard, verdict, summary, what's good, scope check, reviewer, usage — NO findings list, those are already inline) to a temp file:
 
 ```bash
 TMPBODY=$(mktemp --suffix=.md)
 cat > "$TMPBODY" <<'EOF'
-<paste full Step 6 report here>
+<summary content here>
 EOF
 ```
 
-**Before posting — verify the temp file is non-empty (separate Bash call):**
+Verify non-empty:
 ```bash
 wc -c < "$TMPBODY"
 ```
-If the output is `0`, STOP. Tell the user: "Temp file is empty — the report didn't write correctly. Try again." Do NOT post. Clean up: `rm -f "$TMPBODY"`.
+If `0`, STOP — tell user "Temp file empty, try again." Do not post.
 
-**Post:**
+Post:
 ```bash
 gh pr review <number> --<mode> --body-file "$TMPBODY"
 ```
@@ -326,13 +394,13 @@ gh pr review <number> --<mode> --body-file "$TMPBODY"
 ```bash
 gh pr view <number> --json reviews --jq '.reviews[-1] | {state, body: .body[0:80]}'
 ```
-If `body` is empty or null, the body was dropped. In that case, post it as a follow-up comment:
+If `body` is empty or null, auto-recover:
 ```bash
 gh pr comment <number> --body-file "$TMPBODY"
 ```
-Then tell the user: "Approved. Note: GitHub dropped the review body — posted it as a follow-up comment instead."
+Tell user: "Note: GitHub dropped the review body — posted as a follow-up comment instead."
 
-**Cleanup:**
+Cleanup:
 ```bash
 rm -f "$TMPBODY"
 ```
@@ -342,66 +410,9 @@ Mode-to-flag mapping:
 - Request Changes → `--request-changes`
 - Approve → `--approve`
 
-Use `--body-file` not `--body "$(cat <<EOF...)"` — heredocs break on backticks and special chars inside markdown tables and code blocks, and your report has both.
+Use `--body-file` not `--body "$(cat <<EOF...)"` — heredocs break on backticks and special chars.
 
-After posting, confirm: "Posted to PR #<number> as <mode>. URL: <pr-url>"
-
-### If user picks Inline
-
-Post findings as line-level comments on their exact locations. Scorecard + summary go in the review body.
-
-**1. Get repo and commit info (two separate Bash calls):**
-```bash
-gh repo view --json nameWithOwner --jq .nameWithOwner
-```
-```bash
-gh pr view <number> --json headRefOid --jq .headRefOid
-```
-
-**2. Build the review body** (scorecard, verdict, summary, what's good, scope check, reviewer, usage — everything EXCEPT the findings list).
-
-**3. Determine the event** — match the verdict automatically:
-- Verdict is APPROVE → `event: "APPROVE"`
-- Verdict is REQUEST CHANGES → `event: "REQUEST_CHANGES"`
-- Verdict is NEEDS DISCUSSION → `event: "COMMENT"`
-
-This means Inline + APPROVE approves the PR AND posts findings as inline comments in one call. Author sees the approval and can choose to address the inline notes before merging or just merge.
-
-**4. Build the JSON payload** — write to a temp file using the same cat-heredoc pattern:
-```bash
-TMPJSON=$(mktemp --suffix=.json)
-cat > "$TMPJSON" <<'JSONEOF'
-{
-  "commit_id": "<headRefOid from step 1>",
-  "body": "<review body from step 2 — escape double quotes as \\\" and newlines as \\n>",
-  "event": "<APPROVE | REQUEST_CHANGES | COMMENT based on verdict>",
-  "comments": [
-    {
-      "path": "src/foo.ts",
-      "line": 42,
-      "side": "RIGHT",
-      "body": "**P1 — Important:** <finding text>\\n\\n**Suggestion:** <fix>"
-    }
-  ]
-}
-JSONEOF
-```
-
-- `path` — exact file path from the finding (e.g., `src/api/auth.ts`)
-- `line` — line number from the finding (e.g., `42`)
-- `side` — use `"RIGHT"` for added/context lines (almost always RIGHT)
-- `body` — the finding text. Include priority label, what's wrong, and suggestion. Escape double quotes and newlines for valid JSON.
-- One entry per finding. Include all P0/P1/P2/P3 findings.
-
-**4. Post via gh api:**
-```bash
-gh api repos/<owner>/<repo>/pulls/<number>/reviews --method POST --input "$TMPJSON"
-rm -f "$TMPJSON"
-```
-
-**5. Error handling:**
-- If the API returns 422 for a specific comment (line not in diff), fall back: re-post without that comment's inline entry and append it to the review body under a "Findings not mappable to diff lines" section.
-- If the whole call fails, fall back to regular `--comment` posting with the full report.
+After all posting is done, confirm: "Done. PR #<number>: [inline: N findings / skipped] + [summary: <mode> / skipped]. URL: <pr-url>"
 
 ## Rules
 
