@@ -22,9 +22,9 @@ That tradeoff turned out to be expensive in practice. Across five consecutive ru
 |---|---|---|
 | Report rendering | Compressed by parent relay | Rendered directly in chat |
 | `AskUserQuestion` | Often flattened to inline text | Fires as interactive picker |
-| Tool-allowlist enforcement | Structural — `Edit`/`Write` not in frontmatter | Behavioral — "never edit" in instructions |
+| Tool-allowlist enforcement | Structural — `Edit`/`Write` not in frontmatter | Structural — `allowed-tools` frontmatter excludes `Edit`/`Write`/`NotebookEdit` |
 | Context cost | Isolated (~35k tokens don't hit main conversation) | Lands in main conversation |
-| Reliability | Low (5/5 runs failed a mandatory step) | High (1/1 clean run so far) |
+| Reliability | Low (5/5 runs failed a mandatory step) | High — mandatory question enforcement proven across multiple runs |
 
 The skill is the right default for normal PRs. The agent stays as a fallback for **huge PRs** (where context cost matters) or **high-stakes reviews** (where structural tool-level safety is worth the UX penalty).
 
@@ -239,10 +239,19 @@ User: "/pr-reviewer 280"
       │
       ▼
 ┌─────────────────────────────────────────────────────┐
-│ Step 7: MANDATORY AskUserQuestion about posting      │
-│ - Never auto-posts                                   │
-│ - Body is the Step 6 report verbatim, --body-file    │
-│ - Never writes "#<number>" in bodies                 │
+│ Step 7: THREE MANDATORY AskUserQuestion calls        │
+│                                                      │
+│ Q0: Edit/remove findings? Yes → reword/drop items    │
+│                                                      │
+│ Q1: Post inline? Yes → each finding pinned to its    │
+│     exact file:line on the diff (P0/P1/P2/P3 label) │
+│                                                      │
+│ Q2: Post summary? Approve / Request Changes /        │
+│     Comment / No → scorecard + verdict as body       │
+│     (recommended option matches verdict)             │
+│                                                      │
+│ - Never auto-posts. All three questions always fire. │
+│ - Uses --body-file, never "#<number>" in bodies      │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -257,7 +266,9 @@ User: "/pr-reviewer 280"
 | Step 4 (conditional) | Uncommitted changes — stash / commit / cancel? | Safety before branch switch |
 | Step 4 (conditional) | Files overlap with PR — commit / cancel? | Safety against stash-pop conflict |
 | Step 5 (conditional) | Preview URL found — run `/qa-only`? | Opt-in for live testing |
-| Step 7 (always) | Post findings to GitHub? | Never auto-post |
+| Step 7 Q0 (always) | Edit or remove findings before posting? | User controls what gets posted |
+| Step 7 Q1 (always) | Post inline? | Opt-in for line-level comments on diff |
+| Step 7 Q2 (always) | Post summary — Approve / Request Changes / Comment / No? | Never auto-post; verdict pre-highlights recommended option |
 
 **Automatic (no prompt):**
 - Step 1 remote-mode acquisition (never checks out)
