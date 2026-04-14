@@ -330,20 +330,28 @@ User: "/pr-reviewer 280"
 
 ## 8.1 Posting flow
 
-Step 7 uses a two-question flow instead of a single mode picker:
+Step 7 uses a three-question flow:
+
+**Question 0 — Edit/remove findings?** Yes / No
+- Yes → numbered findings list shown, user drops or rewords items before anything is posted.
+- No → proceed with findings as-is.
 
 **Question 1 — Post inline?** Yes / No
-- Yes → posts each finding as a line-level comment on its exact file:line, priority label included (P0/P1/P2/P3 visible on the diff). Uses `gh api repos/{owner}/{repo}/pulls/{number}/reviews` with a `comments[]` array.
+- Description is verdict-aware:
+  - APPROVE → "optional — verdict is APPROVE"
+  - REQUEST CHANGES → "recommended — author needs line-level context to address findings"
+  - NEEDS DISCUSSION → "recommended — helps clarify what needs discussion"
+- Yes → each finding posted as a line-level comment on its exact file:line, priority label (P0/P1/P2/P3) included on the diff. Uses `gh api repos/{owner}/{repo}/pulls/{number}/reviews` with a `comments[]` array.
 - No → skip inline, go to Question 2.
 
 **Question 2 — Post summary?** Approve / Request Changes / Comment / No
-- Posts scorecard, verdict, what's good, scope check as a review body — no findings list (those are already inline).
-- Recommended option is pre-highlighted based on verdict.
+- Posts scorecard, verdict, what's good (bullet list, 2-3 items), scope check as review body — no findings list (those are already inline).
+- Recommended option pre-highlighted based on verdict.
 - No → done, keep everything in chat only.
 
 This means the typical flow for an APPROVE review is: inline findings pinned to their lines + summary posted as Approve. Author sees the approval signal and can address the inline notes before merging or just merge.
 
-**Why two questions:** inline and summary serve different purposes. Inline gives the author line-level context; the summary gives the overall verdict signal. Separating them lets you post inline without approving yet, or approve without inline if the PR has no findings worth pinning.
+**Why three questions:** Q0 gives the reviewer final control before anything is posted. Q1 and Q2 serve different purposes — inline gives the author line-level context; the summary gives the overall verdict signal. Separating them lets you post inline without approving yet, or approve without inline if the PR has no findings worth pinning.
 
 **Inline error handling:** if the GitHub API rejects a line (HTTP 422 — not in diff), that finding is removed from the inline payload and appended to the summary body under "Findings not mappable to diff lines." Full fallback to regular `--comment` if the whole inline call fails.
 
