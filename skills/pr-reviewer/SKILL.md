@@ -295,6 +295,23 @@ Immediately after presenting the full Step 6 report (and after any Codex integra
 
 CRITICAL: these questions MUST fire. Prior bug: agents delivered the report and stopped, forcing the user to prompt "what about posting?" That is a failure mode. Always ask.
 
+### Question 0 — Edit findings before posting?
+
+Use AskUserQuestion:
+
+> "Want to edit or remove any findings before posting?
+> • **Yes** — show me the findings list so I can drop or reword items
+> • **No** — post as-is"
+
+**If Yes:**
+- Print the findings list numbered (e.g., "1. P1 — src/foo.ts:42 — null dereference", "2. P2 — src/bar.ts:88 — naming unclear")
+- Ask the user: "Which findings do you want to drop (enter numbers) or reword (enter number + new text)? Type 'done' when finished."
+- Apply the user's edits to the working findings list. Dropped findings are removed entirely. Reworded findings replace the original text.
+- Re-render ONLY the updated Findings section so the user can confirm the final list before posting.
+- Proceed to Question 1 with the edited findings list.
+
+**If No:** proceed to Question 1 with findings as-is.
+
 ### Question 1 — Post inline?
 
 Use AskUserQuestion:
