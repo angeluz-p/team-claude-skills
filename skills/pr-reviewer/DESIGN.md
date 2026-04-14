@@ -368,7 +368,7 @@ This means the typical flow for an APPROVE review is: inline findings pinned to 
 
 Interactive workflows that render structured output and ask multiple questions belong in skills. Every similar tool in the Claude Code ecosystem (`/review`, `/codex`, `/qa`, `/qa-only`) is a skill for the same reason — they're conversations with the user, not delegated tasks.
 
-Subagents are the right container for autonomous, context-isolated jobs that produce a single result. PR review is not that. It has 4-6 decision points (draft check, Codex opt-in, stash decision, conflict response, QA opt-in, post mode) that require user input at runtime. Shoehorning that into a subagent produced the relay-compression and flattened-question bugs we saw across five consecutive runs.
+Subagents are the right container for autonomous, context-isolated jobs that produce a single result. PR review is not that. It has 8-10 decision points (draft check, prior approval/changes-requested check, Codex opt-in, stash decision, conflict response, QA opt-in, edit findings, post inline, post summary) that require user input at runtime. Shoehorning that into a subagent produced the relay-compression and flattened-question bugs we saw across five consecutive runs.
 
 **The agent variant (`~/.claude/agents/pr-reviewer.md`) is retained as legacy only.** The skill is the real pr-reviewer. If you see the agent file referenced in older documentation, prefer the skill.
 
@@ -405,8 +405,8 @@ For a team reviewing 20-50 PRs per week, roughly $40-150/month on Claude side, p
 
 ## 12. Rollout plan
 
-**Phase 1 (current):** Solo use + one pilot user (Eugene, already familiar with Codex CLI).
-**Phase 2:** After pilot feedback, extend to 2-3 more technical team members.
+**Phase 1 (done):** Solo use + one pilot user (Eugene, already familiar with Codex CLI).
+**Phase 2 (current):** Skill added to project repo at `.claude/skills/pr-reviewer/SKILL.md` — teammates get it on `git pull`. GitHub issue Project-M-Stealth/m#286 tracks installation.
 **Phase 3:** Wider team, with SETUP.md as the onboarding doc.
 **Phase 4 (if demand):** Consider a "lite" version for non-technical reviewers that produces a plain-English summary instead of the technical scorecard.
 
