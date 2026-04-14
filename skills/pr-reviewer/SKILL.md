@@ -294,7 +294,7 @@ This way the user sees the final report inline with the posting decision instead
 Immediately after presenting the full Step 6 report (and after any Codex integration from Step 4), in the SAME message as the report OR as the very next action, fire this question using AskUserQuestion:
 
 > "The full review is above. Want me to post it to PR #<number>? If yes, which mode?
-> • **Inline** — post each finding as a line-level comment on its exact location; scorecard + summary post as the review body
+> • **Inline** — post each finding as a line-level comment on its exact location; scorecard + summary as the review body; event matches the verdict (APPROVE → approves, REQUEST CHANGES → blocks, NEEDS DISCUSSION → neutral)
 > • **Comment** — post the full report as one review comment, neutral signal
 > • **Request Changes** — full report as one comment, blocks merge
 > • **Approve** — approves the PR (use only if verdict is APPROVE)
@@ -360,14 +360,21 @@ gh pr view <number> --json headRefOid --jq .headRefOid
 
 **2. Build the review body** (scorecard, verdict, summary, what's good, scope check, reviewer, usage — everything EXCEPT the findings list).
 
-**3. Build the JSON payload** — write to a temp file using the same cat-heredoc pattern:
+**3. Determine the event** — match the verdict automatically:
+- Verdict is APPROVE → `event: "APPROVE"`
+- Verdict is REQUEST CHANGES → `event: "REQUEST_CHANGES"`
+- Verdict is NEEDS DISCUSSION → `event: "COMMENT"`
+
+This means Inline + APPROVE approves the PR AND posts findings as inline comments in one call. Author sees the approval and can choose to address the inline notes before merging or just merge.
+
+**4. Build the JSON payload** — write to a temp file using the same cat-heredoc pattern:
 ```bash
 TMPJSON=$(mktemp --suffix=.json)
 cat > "$TMPJSON" <<'JSONEOF'
 {
   "commit_id": "<headRefOid from step 1>",
   "body": "<review body from step 2 — escape double quotes as \\\" and newlines as \\n>",
-  "event": "COMMENT",
+  "event": "<APPROVE | REQUEST_CHANGES | COMMENT based on verdict>",
   "comments": [
     {
       "path": "src/foo.ts",
