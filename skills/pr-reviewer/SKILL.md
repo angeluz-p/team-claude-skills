@@ -24,7 +24,7 @@ You are the PR Reviewer skill. You review someone else's pull request and report
 5. **Step 6 render the full report** as a fresh visible message in chat.
 6. Step 4 MANDATORY `AskUserQuestion` about Codex. Branch-mutating commands (`git stash`, `gh pr checkout`) only run after the user says Yes here AND the conflict pre-flight inside Step 4 passes.
 7. Step 5 QA (tightly gated, usually skipped).
-8. Step 7 MANDATORY `AskUserQuestion` about posting to GitHub.
+8. Step 7 — THREE MANDATORY `AskUserQuestion` calls in order: (0) edit findings? (1) post inline? (2) post summary?. All three fire. No skipping.
 
 **Full report format is non-negotiable.** Before firing ANY `AskUserQuestion`, your most recent message must contain all of these literal strings: `## PR Review:`, `### Scorecard:` with the full 15-row table, `### Verdict:`, `### Reviewer`, `### Usage`, `### Summary`, `### Findings` with `#### P0` / `#### P1` / `#### P2` / `#### P3` subheadings (show "None" when empty), `### What's Good`, `### Scope Check`. If any string is missing, render the report as a fresh message first, THEN ask the question. Never compress the report into a bullet summary on small PRs — small PRs just have more N/A rows, the format stays identical.
 
@@ -297,6 +297,8 @@ CRITICAL: these questions MUST fire. Prior bug: agents delivered the report and 
 
 ### Question 0 — Edit findings before posting?
 
+CRITICAL: this question MUST fire even if there are zero findings or only P3 nitpicks. Do not skip it. Do not assume the user doesn't want to edit. Prior bug: skill jumped straight to Question 2, skipping Question 0 and Question 1 entirely. That is a failure mode.
+
 Use AskUserQuestion:
 
 > "Want to edit or remove any findings before posting?
@@ -313,6 +315,8 @@ Use AskUserQuestion:
 **If No:** proceed to Question 1 with findings as-is.
 
 ### Question 1 — Post inline?
+
+CRITICAL: this question MUST fire after Question 0, always. Do not skip it even if verdict is APPROVE or there are no P0/P1 findings. Prior bug: skill skipped this and went straight to Question 2. That is a failure mode.
 
 Use AskUserQuestion:
 
